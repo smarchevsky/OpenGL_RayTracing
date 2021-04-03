@@ -12,13 +12,16 @@ namespace fs = std::experimental::filesystem;
 class Shader {
 public:
     struct ShaderVariable {
+
         ShaderVariable(const Shader& parent, const char* name);
+		void updateLocation(const char* name);
+
         template <class T>
         void set(const T& var) { }
         void set(glm::vec2 var);
         void set(glm::vec3 var);
         void set(glm::vec4 var);
-		void set(glm::mat4 var);
+        void set(glm::mat4 var);
         void set(float var);
 
     private:
@@ -26,6 +29,7 @@ public:
         int location;
     };
     Shader(const fs::path& vPath, const fs::path& fPath, const fs::path& gPath = "");
+    void reloadProgram(const fs::path& vPath, const fs::path& fPath, const fs::path& gPath = "");
     std::string codeFromPath(const fs::path& path);
 
     ShaderVariable getVariable(const char* varName) const { return ShaderVariable(*this, varName); }
@@ -35,6 +39,7 @@ public:
 
 private:
     int m_program = -1;
+    void destroyProgram();
     int createShader(const char* shaderSource, int shaderType);
 };
 

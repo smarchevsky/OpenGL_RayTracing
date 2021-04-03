@@ -14,9 +14,16 @@
 #pragma region shader_variable
 Shader::ShaderVariable::ShaderVariable(const Shader& parent, const char* name)
     : parentShader(parent)
-    , location(glGetUniformLocation(parentShader.getProgram(), name))
+
 {
+    updateLocation(name);
 }
+
+void Shader::ShaderVariable::updateLocation(const char* name)
+{
+    location = glGetUniformLocation(parentShader.getProgram(), name);
+}
+
 void Shader::ShaderVariable::set(float var) { glUniform1f(location, var); }
 void Shader::ShaderVariable::set(glm::vec2 var) { glUniform2fv(location, 1, &var[0]); }
 void Shader::ShaderVariable::set(glm::vec3 var) { glUniform3fv(location, 1, &var[0]); }
@@ -46,6 +53,12 @@ static GLuint shaderFromCode(const std::string& code, GLint type)
 
 Shader::Shader(const fs::path& vPath, const fs::path& fPath, const fs::path& gPath)
 {
+    reloadProgram(vPath, fPath, gPath);
+}
+
+void Shader::reloadProgram(const fs::path& vPath, const fs::path& fPath, const fs::path& gPath /*= ""*/)
+{
+    destroyProgram();
     auto vertexShader = shaderFromCode(codeFromPath(vPath), GL_VERTEX_SHADER);
     auto fragmentShader = shaderFromCode(codeFromPath(fPath), GL_FRAGMENT_SHADER);
     auto geometryShader = 0;
@@ -101,11 +114,18 @@ std::string Shader::codeFromPath(const fs::path& path)
 }
 
 void Shader::bind() { glUseProgram(m_program); }
-Shader::~Shader() { glDeleteProgram(m_program); }
+Shader::~Shader() { destroyProgram(); }
+
+void Shader::destroyProgram()
+{
+    if (m_program != -1)
+        glDeleteProgram(m_program);
+}
 
 #pragma endregion
 
 #pragma region window
+
 Window::Window(int width /*= 800*/, int height /*= 600*/)
     : m_width(width)
     , m_height(height)
@@ -116,6 +136,7 @@ Window::Window(int width /*= 800*/, int height /*= 600*/)
     }
 
     window = SDL_CreateWindow("Glad Sample", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, m_width, m_height, SDL_WINDOW_SHOWN | SDL_WINDOW_OPENGL);
+    SDL_SetWindowResizable(window, SDL_TRUE);
 
     renderer = SDL_CreateRenderer(window, -1, SDL_RENDERER_ACCELERATED);
 
@@ -163,6 +184,7 @@ bool Window::update()
     }
 
     switch (event.type) {
+
     case SDL_QUIT:
         return false;
 
@@ -171,7 +193,15 @@ bool Window::update()
         case SDLK_ESCAPE:
             return false;
         }
+    case SDL_WINDOWEVENT: {
     }
+        if (event.window.event == SDL_WINDOWEVENT_RESIZED) {
+            m_width = event.window.data1;
+            m_height = event.window.data2;
+            glViewport(0, 0, (GLsizei)m_width, (GLsizei)m_height);
+        }
+    }
+
     return true;
 }
 
