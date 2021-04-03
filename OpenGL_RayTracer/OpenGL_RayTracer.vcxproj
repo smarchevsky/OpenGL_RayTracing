@@ -165,6 +165,9 @@
     <ClInclude Include="GLStuff.h" />
     <ClInclude Include="Integrator.h" />
   </ItemGroup>
+  <ItemGroup>
+    <None Include="Shaders\frag.glsl" />
+  </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
   </ImportGroup>

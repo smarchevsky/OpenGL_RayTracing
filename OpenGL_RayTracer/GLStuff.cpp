@@ -1,5 +1,8 @@
 #include "GLStuff.h"
+#include <fstream>
+#include <glm/gtc/type_ptr.hpp>
 #include <iostream>
+#include <sstream>
 #include <string>
 
 #include <SDL.h>
@@ -7,100 +10,98 @@
 #include "glad/glad.h"
 
 #pragma region shader
-static const char* vertexShaderSource = "#version 330 core\n"
-                                        "layout (location = 0) in vec3 aPos;\n"
-                                        "uniform vec2 offset;\n"
-                                        "void main()\n"
-                                        "{\n"
-                                        "   gl_Position = vec4(aPos.x + offset.x, aPos.y + offset.y, aPos.z, 1.0);\n"
-                                        "}\0";
 
-static const char* fragmentShaderSource = "#version 330 core\n"
-                                          "out vec4 FragColor;\n"
-                                          "uniform vec3 color = vec3(1.0f, 0.5f, 0.2f);\n"
-                                          "void main()\n"
-                                          "{\n"
-                                          "   FragColor = vec4(color.x, color.y, color.z, 1.0f);\n"
-                                          "}\n\0";
-
+#pragma region shader_variable
 Shader::ShaderVariable::ShaderVariable(const Shader& parent, const char* name)
     : parentShader(parent)
     , location(glGetUniformLocation(parentShader.getProgram(), name))
 {
 }
+void Shader::ShaderVariable::set(float var) { glUniform1f(location, var); }
+void Shader::ShaderVariable::set(glm::vec2 var) { glUniform2fv(location, 1, &var[0]); }
+void Shader::ShaderVariable::set(glm::vec3 var) { glUniform3fv(location, 1, &var[0]); }
+void Shader::ShaderVariable::set(glm::vec4 var) { glUniform4fv(location, 1, &var[0]); }
+void Shader::ShaderVariable::set(glm::mat4 var) { glUniformMatrix4fv(location, 1, GL_FALSE, glm::value_ptr(var)); }
 
-void Shader::ShaderVariable::set(float var)
+#pragma endregion
+
+static GLuint shaderFromCode(const std::string& code, GLint type)
 {
-    glUniform1f(location, var);
-}
+    GLuint shader = glCreateShader(type);
+    char const* VertexSourcePointer = code.c_str();
+    glShaderSource(shader, 1, &VertexSourcePointer, nullptr);
+    glCompileShader(shader);
 
-void Shader::ShaderVariable::set(glm::vec2 var)
-{
-    glUniform2fv(location, 1, &var[0]);
-}
-
-void Shader::ShaderVariable::set(glm::vec3 var)
-{
-    glUniform3fv(location, 1, &var[0]);
-}
-
-void Shader::ShaderVariable::set(glm::vec4 var)
-{
-    glUniform4fv(location, 1, &var[0]);
-}
-
-Shader::Shader()
-{
-    m_shaderProgram = glCreateProgram();
-    int vs = createShader(vertexShaderSource, GL_VERTEX_SHADER);
-    int fs = createShader(fragmentShaderSource, GL_FRAGMENT_SHADER);
-    glAttachShader(m_shaderProgram, vs);
-    glAttachShader(m_shaderProgram, fs);
-    glLinkProgram(m_shaderProgram);
-
-    int success;
-    char infoLog[512];
-    glGetProgramiv(m_shaderProgram, GL_LINK_STATUS, &success);
-    if (!success) {
-        glGetProgramInfoLog(m_shaderProgram, 512, NULL, infoLog);
-        std::cout << "ERROR::SHADER::PROGRAM::LINKING_FAILED\n"
-                  << infoLog << std::endl;
+    int InfoLogLength;
+    GLint Result = GL_FALSE;
+    glGetShaderiv(shader, GL_COMPILE_STATUS, &Result);
+    glGetShaderiv(shader, GL_INFO_LOG_LENGTH, &InfoLogLength);
+    if (InfoLogLength > 0) {
+        std::vector<char> errorMessage(InfoLogLength + 1);
+        glGetShaderInfoLog(shader, InfoLogLength, nullptr, &errorMessage[0]);
+        std::cerr << &errorMessage[0] << std::endl;
     }
-    glDeleteShader(vs);
-    glDeleteShader(fs);
+    return shader;
 }
 
-Shader::Shader(const std::string& path)
+Shader::Shader(const fs::path& vPath, const fs::path& fPath, const fs::path& gPath)
 {
+    auto vertexShader = shaderFromCode(codeFromPath(vPath), GL_VERTEX_SHADER);
+    auto fragmentShader = shaderFromCode(codeFromPath(fPath), GL_FRAGMENT_SHADER);
+    auto geometryShader = 0;
+    bool geomShaderExists = !gPath.empty();
+    if (geomShaderExists)
+        geometryShader = shaderFromCode(codeFromPath(gPath), GL_GEOMETRY_SHADER);
 
-}
+    // Link the program
+    m_program = glCreateProgram();
+    glAttachShader(m_program, vertexShader);
+    glAttachShader(m_program, fragmentShader);
+    if (geomShaderExists)
+        glAttachShader(m_program, geometryShader);
 
-Shader::~Shader()
-{
-    glDeleteProgram(m_shaderProgram);
-}
+    glLinkProgram(m_program);
 
-void Shader::bind()
-{
-    glUseProgram(m_shaderProgram);
-}
-
-int Shader::createShader(const char* shaderSource, int shaderType)
-{
-    int sh = glCreateShader(shaderType);
-    glShaderSource(sh, 1, &shaderSource, NULL);
-    glCompileShader(sh);
-    int success;
-    glGetShaderiv(sh, GL_COMPILE_STATUS, &success);
-    if (!success) {
-        char infoLog[512];
-        std::string shaderTypeName = shaderType == GL_VERTEX_SHADER ? "VERTEX" : "FRAGMENT";
-        glGetShaderInfoLog(sh, 512, NULL, infoLog);
-        LOG("ERROR::SHADER::" << shaderTypeName << "::COMPILATION_FAILED\n"
-                              << infoLog);
+    int InfoLogLength;
+    GLint Result = GL_FALSE;
+    glGetProgramiv(m_program, GL_LINK_STATUS, &Result);
+    glGetProgramiv(m_program, GL_INFO_LOG_LENGTH, &InfoLogLength);
+    if (InfoLogLength > 0) {
+        std::vector<char> ProgramErrorMessage(InfoLogLength + 1);
+        glGetProgramInfoLog(m_program, InfoLogLength, nullptr, &ProgramErrorMessage[0]);
+        throw std::string(&ProgramErrorMessage[0]);
     }
-    return sh;
+
+    glDetachShader(m_program, vertexShader);
+    glDetachShader(m_program, fragmentShader);
+
+    if (geomShaderExists) {
+        glDetachShader(m_program, geometryShader);
+        glDeleteShader(geometryShader);
+    }
+
+    glDeleteShader(vertexShader);
+    glDeleteShader(fragmentShader);
+
+    bind();
 }
+
+std::string Shader::codeFromPath(const fs::path& path)
+{
+    std::string code;
+    std::ifstream shaderStream(path, std::ios::in);
+    if (shaderStream.is_open()) {
+        std::stringstream sstr;
+        sstr << shaderStream.rdbuf();
+        code = sstr.str();
+        shaderStream.close();
+        return code;
+    }
+    throw std::string("Bad shader path: " + path.string());
+}
+
+void Shader::bind() { glUseProgram(m_program); }
+Shader::~Shader() { glDeleteProgram(m_program); }
 
 #pragma endregion
 
@@ -111,7 +112,7 @@ Window::Window(int width /*= 800*/, int height /*= 600*/)
 {
     if (SDL_Init(SDL_INIT_VIDEO) != 0) {
         std::cerr << "SDL2 video subsystem couldn't be initialized. Error: " << SDL_GetError() << std::endl;
-        exit(1);
+        throw "Can't initialize SDL";
     }
 
     window = SDL_CreateWindow("Glad Sample", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, m_width, m_height, SDL_WINDOW_SHOWN | SDL_WINDOW_OPENGL);
@@ -120,14 +121,14 @@ Window::Window(int width /*= 800*/, int height /*= 600*/)
 
     if (renderer == nullptr) {
         std::cerr << "SDL2 Renderer couldn't be created. Error: " << SDL_GetError() << std::endl;
-        exit(1);
+        throw "Can't initialize renderer";
     }
 
     gl_context = SDL_GL_CreateContext(window);
 
     if (!gladLoadGLLoader((GLADloadproc)SDL_GL_GetProcAddress)) {
         std::cerr << "Failed to initialize the OpenGL context." << std::endl;
-        exit(1);
+        throw "Can't bind OpenGL";
     }
 
     std::cout << "OpenGL version loaded: " << GLVersion.major << "."
@@ -154,7 +155,7 @@ bool Window::update()
         SDL_Log("Mouse Button 1 (left) is pressed.");
     }
     if (event.type == SDL_KEYDOWN || event.type == SDL_KEYUP) {
-        uint16_t actionMap = combine(event.key.keysym.sym, event.type == SDL_KEYDOWN);
+        uint16_t actionMap = combineAction(event.key.keysym.sym, event.type == SDL_KEYDOWN);
         auto found = m_actionMapping.find(actionMap);
         if (found != m_actionMapping.end()) {
             found->second();
@@ -188,14 +189,14 @@ glm::vec2 Window::getMousePos()
     int x, y;
     auto mb = SDL_GetMouseState(&x, &y);
     glm::vec2 pos((float)x / m_width * 2.f - 1.f, 1.f - (float)y / m_height * 2.f);
-    // printf("Mouse position: %f, %f, button: %d\n", pos.x, pos.y, mb);
     return pos;
 }
 #pragma endregion
 
 #pragma region mesh
 
-void Mesh::createMesh(size_t vertexArrayLength, size_t vertexSize, void* vertexPtr, size_t indicesArrayLength, size_t indexSize, void* indexPtr)
+void Mesh::createMesh(size_t vertexArrayLength, size_t vertexSize, void* vertexPtr,
+    size_t indicesArrayLength, size_t indexSize, void* indexPtr)
 {
     glGenVertexArrays(1, &m_VAO);
     glGenBuffers(1, &m_VBO);
