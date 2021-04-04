@@ -114,8 +114,8 @@ int main()
             //rot.x = time * .2;
             float dt = window.getDeltaTime();
             time += dt;
-            vec3 rotateVec = glm::rotateY(vec3(8, 0, 0), -rot.y);
-            rotateVec = glm::rotateZ(rotateVec, rot.x);
+            vec3 rotateVec = glm::rotateY(vec3(8, 0, 0), rot.y);
+            rotateVec = glm::rotateZ(rotateVec, -rot.x);
             mat4 viewMat = glm::inverse(glm::lookAt(rotateVec, vec3(0), vec3(0, 0, 1)));
 
             sphMotion.update(dt);
