@@ -40,7 +40,7 @@ public:
         m_boundMin = min, m_boundMax = max;
         for (auto& sph : m_spheres) {
             sph.pos = cubeRand(min, max);
-            sph.vel = sphericalRand(1.4f);
+            sph.vel = sphericalRand(22.4f);
             sph.r = 1.f;
         }
     }
@@ -91,6 +91,7 @@ int main()
         auto shaderAspectRatio = shader.getVariable("aspectRatio");
         auto shaderLightDir = shader.getVariable("lightDir");
         auto shaderSphPositions = shader.getVariable("sphPositions");
+        auto shaderSphPrevPositions = shader.getVariable("sphPrevPositions");
 
         auto updateShader = [&]() {
             shader.reloadProgram("Shaders/Vert.glsl", "Shaders/RayTrace.glsl");
@@ -98,13 +99,16 @@ int main()
             shaderAspectRatio.updateLocation("aspectRatio");
             shaderLightDir.updateLocation("lightDir");
             shaderSphPositions.updateLocation("sphPositions");
+            shaderSphPrevPositions.updateLocation("sphPrevPositions");
         };
 
-        float boxSize = 3.f;
-        SphereMotion<8> sphMotion(vec3(-boxSize), vec3(boxSize));
+        float boxWidth = 5.f;
+		float boxHeight = 3.f;
+        SphereMotion<8> sphMotion(vec3(-boxWidth, -boxWidth, -boxHeight), vec3(boxWidth, boxWidth, boxHeight));
 
         static int updater = 0;
         double time = 0.;
+        vec3 sphPositions[8] {};
         while (window.update()) {
             if (updater++ % 60 == 0) {
                 updateShader();
@@ -119,21 +123,17 @@ int main()
             mat4 viewMat = glm::inverse(glm::lookAt(rotateVec, vec3(0), vec3(0, 0, 1)));
 
             sphMotion.update(dt);
-            vec3 positions[8];
-            for (int i = 0; i < 8; ++i) {
-                positions[i] = sphMotion.m_spheres[i].pos;
-                //std::cout << glm::to_string(positions[i]) << "  ";
-            }
-            //std::cout << std::endl;
-            shaderSphPositions.set(positions, 8);
+            shaderSphPrevPositions.set(sphPositions, 8);
+            for (int i = 0; i < 8; ++i)
+                sphPositions[i] = sphMotion.m_spheres[i].pos;
+            shaderSphPositions.set(sphPositions, 8);
 
             shaderAspectRatio.set(window.getAspectRatio());
-            float ftime = (float)time / 6.28;
+            float ftime = (float)(time / 6.28);
             shaderLightDir.set(normalize(vec3(sin(ftime), cos(ftime), sin(ftime) + 1.4f)));
             shaderViewMat.set(viewMat);
             mesh.draw();
         }
-
     } catch (const std::string& msg) {
         std::cerr << msg << std::endl;
     }

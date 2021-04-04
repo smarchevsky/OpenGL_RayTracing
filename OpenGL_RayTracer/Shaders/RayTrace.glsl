@@ -16,6 +16,7 @@ uniform float aspectRatio;
 uniform vec3 lightDir;
 
 uniform vec3 sphPositions[8];
+uniform vec3 sphPrevPositions[8];
 
 vec3 hash3(vec3 p3)
 {
@@ -24,8 +25,9 @@ vec3 hash3(vec3 p3)
     return fract((p3.zyx + p3.yxz) * p3.zxy);
 }
 
-vec2 hash2(vec3 p3) {
-	p3 = fract(p3 * vec3(5.3983, 5.4427, 6.9371));
+vec2 hash2(vec3 p3)
+{
+    p3 = fract(p3 * vec3(5.3983, 5.4427, 6.9371));
     p3 += dot(p3, p3.yzx + 19.19);
     return fract((p3.xx + p3.yz) * p3.zy);
 }
@@ -44,11 +46,11 @@ vec3 sphRand(vec3 p)
 
 vec2 circleRand(vec3 p)
 {
-        vec2 hash = hash2(p);
-        float a = pow(hash.x, .5);
-    	float b = cos(2. * PI * hash.y);
-    	float c = sin(2. * PI * hash.y);
-        return vec2(b, c) * a;
+    vec2 hash = hash2(p);
+    float a = pow(hash.x, .5);
+    float b = cos(2. * PI * hash.y);
+    float c = sin(2. * PI * hash.y);
+    return vec2(b, c) * a;
 }
 
 #define EVALUATE_RAY(k, dist, n, id, newId) \
@@ -110,8 +112,8 @@ vec3 getColor(vec3 n, vec3 rd, int id)
     float intens = fresnel(dot(-rd, n));
     intens = mix(intens, 1.0, 0.7);
     return vec3(.8) * intens
-     //* ((id >= 0) ? rainbow(id * .21) : vec3(1))
-     ;
+        //* ((id >= 0) ? rainbow(id * .21) : vec3(1))
+        ;
 }
 
 vec4 getSceneColor(inout vec3 ro, inout vec3 rd, vec3 sphBlur)
@@ -121,28 +123,20 @@ vec4 getSceneColor(inout vec3 ro, inout vec3 rd, vec3 sphBlur)
     vec3 n = rd;
 
     for (int i = 0; i < 8; i++) {
-        vec3 sphOrigin = sphPositions[i];
-        //float k = raySphereIntersect(ro, rd, sphOrigin, 1.0);
+        vec3 sphOrigin = mix(sphPositions[i], sphPrevPositions[i], sphBlur.x);
         float k = sphIntersect(ro - sphOrigin, rd, 1.0);
         vec3 pos = ro + rd * k;
         vec3 newN = normalize(pos - sphOrigin);
         int newId = i;
         EVALUATE_RAY(k, dist, n, id, newId);
     }
-    {
+    { // PLANE
         vec4 plInfo = vec4(0, 0, 1, 4);
         float k = planeIntersect(ro, rd, plInfo);
         vec3 newN = plInfo.xyz;
         int newId = -1;
         EVALUATE_RAY(k, dist, n, id, newId);
     }
-    // {
-    //     vec4 plInfo = vec4(normalize(vec3(0, -.5, -1)), 40);
-    //     float k = planeIntersect(ro, rd, plInfo);
-    //     vec3 newN = plInfo.xyz;
-    //     int newId = 1;
-    //     EVALUATE_RAY(k, dist, n, id, newId);
-    // }
 
     vec3 blurNormal = normalize(n + sphBlur * .03);
     float dotNN = dot(n, blurNormal);
@@ -161,17 +155,17 @@ vec4 getSceneColor(inout vec3 ro, inout vec3 rd, vec3 sphBlur)
     return vec4(color, dist);
 }
 
-vec3 traceRay(vec3 ro, vec3 rd, int hash)
+vec3 traceRay(vec3 ro, vec3 rd, int index)
 {
-    vec3 sphBlur = sphRand(rd + vec3(hash * 7.31));
+    vec3 sphBlur = sphRand(rd + vec3(index * 7.31));
     vec3 col = vec3(1);
 
     for (int i = 0; i < 12; ++i) {
         vec4 sceneCol = getSceneColor(ro, rd, sphBlur);
-        sphBlur.z = -sphBlur.z;
         col *= sceneCol.rgb;
         if (sceneCol.a == MAX)
             return col;
+        sphBlur = sphBlur.zxy * vec3(1, -1, 1);
     }
 
     return vec3(0.1);
@@ -181,14 +175,14 @@ vec3 traceRay(vec3 ro, vec3 rd, int hash)
 void main()
 {
     vec2 uv = vertColor.xy * vec2(aspectRatio, 1.0);
-    
+
     //vec3 rayOrigin = -viewMat[3].xyz + mat3x3(viewMat) * vec3(circle, 0);
-    
+
     vec3 color = vec3(0);
-    for (int i = 0; i < STEPS; ++i){
+    for (int i = 0; i < STEPS; ++i) {
         vec2 circle = circleRand(vec3(uv * 73.211, i));
-        vec3 rayOrigin = (viewMat * vec4(circle * .4, 0, 1.0)).xyz;
-        vec3 matrixPos = (viewMat * vec4(vec3(uv * 4.0, -8.0), 1.0)).xyz;
+        vec3 rayOrigin = (viewMat * vec4(circle * 0.1, 0, 1.0)).xyz;
+        vec3 matrixPos = (viewMat * vec4(vec3(uv * 4.0, -6.0), 1.0)).xyz;
         vec3 rayDir = normalize(matrixPos - rayOrigin);
         color += traceRay(rayOrigin, rayDir, i);
     }
