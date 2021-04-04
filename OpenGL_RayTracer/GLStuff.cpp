@@ -14,7 +14,6 @@
 #pragma region shader_variable
 Shader::ShaderVariable::ShaderVariable(const Shader& parent, const char* name)
     : parentShader(parent)
-
 {
     updateLocation(name);
 }
@@ -29,6 +28,7 @@ void Shader::ShaderVariable::set(glm::vec2 var) { glUniform2fv(location, 1, &var
 void Shader::ShaderVariable::set(glm::vec3 var) { glUniform3fv(location, 1, &var[0]); }
 void Shader::ShaderVariable::set(glm::vec4 var) { glUniform4fv(location, 1, &var[0]); }
 void Shader::ShaderVariable::set(glm::mat4 var) { glUniformMatrix4fv(location, 1, GL_FALSE, glm::value_ptr(var)); }
+void Shader::ShaderVariable::set(glm::vec3* pos, int num) { glUniform3fv(location, num, glm::value_ptr(pos[0])); }
 
 #pragma endregion
 
@@ -135,7 +135,10 @@ Window::Window(int width /*= 800*/, int height /*= 600*/)
         throw "Can't initialize SDL";
     }
 
-    window = SDL_CreateWindow("Glad Sample", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, m_width, m_height, SDL_WINDOW_SHOWN | SDL_WINDOW_OPENGL);
+	if(true){}
+
+    window = SDL_CreateWindow("Glad Sample", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED,
+        m_width, m_height, SDL_WINDOW_FULLSCREEN | SDL_WINDOW_SHOWN | SDL_WINDOW_OPENGL);
     SDL_SetWindowResizable(window, SDL_TRUE);
 
     renderer = SDL_CreateRenderer(window, -1, SDL_RENDERER_ACCELERATED);

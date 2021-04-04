@@ -22,9 +22,10 @@ public:
         void set(glm::vec3 var);
         void set(glm::vec4 var);
         void set(glm::mat4 var);
+		void set(glm::vec3* pos, int num);
         void set(float var);
 
-    private:
+	private:
         const Shader& parentShader;
         int location;
     };
