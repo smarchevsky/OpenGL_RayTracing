@@ -67,10 +67,10 @@ public:
                 vec3 norm(0);
                 if (Sphere::collided(m_spheres[i], m_spheres[j], norm)) {
                     vec3 midpoint = (m_spheres[i].pos + m_spheres[j].pos) * .5f;
-                    m_spheres[i].pos = midpoint - norm;
-                    m_spheres[j].pos = midpoint + norm;
-                    m_spheres[i].vel = -glm::reflect(m_spheres[i].vel, norm);
-                    m_spheres[j].vel = -glm::reflect(m_spheres[j].vel, norm);
+                    m_spheres[i].pos = midpoint + norm;
+                    m_spheres[j].pos = midpoint - norm;
+                    m_spheres[i].vel = glm::reflect(m_spheres[i].vel, norm);
+                    m_spheres[j].vel = glm::reflect(m_spheres[j].vel, norm);
                 }
             }
         }
@@ -83,7 +83,8 @@ int main()
 {
     try {
 
-        Window window(1920, 1080);
+        //Window window(1920, 1080);
+        Window window(600, 600);
         Mesh mesh;
         Shader shader("Shaders/Vert.glsl", "Shaders/RayTrace.glsl");
         auto shaderViewMat = shader.getVariable("viewMat");
@@ -109,8 +110,8 @@ int main()
                 updateShader();
             }
             vec2 rot = window.getMousePos() * 3.f;
-			rot.y = -.5;
-			rot.x = time * .2;
+            //rot.y = -.5;
+            //rot.x = time * .2;
             float dt = window.getDeltaTime();
             time += dt;
             vec3 rotateVec = glm::rotateY(vec3(8, 0, 0), -rot.y);
@@ -123,11 +124,11 @@ int main()
                 positions[i] = sphMotion.m_spheres[i].pos;
                 //std::cout << glm::to_string(positions[i]) << "  ";
             }
-            std::cout << std::endl;
+            //std::cout << std::endl;
             shaderSphPositions.set(positions, 8);
 
             shaderAspectRatio.set(window.getAspectRatio());
-            float ftime = (float)time;
+            float ftime = (float)time / 6.28;
             shaderLightDir.set(normalize(vec3(sin(ftime), cos(ftime), sin(ftime) + 1.4f)));
             shaderViewMat.set(viewMat);
             mesh.draw();

@@ -135,10 +135,15 @@ Window::Window(int width /*= 800*/, int height /*= 600*/)
         throw "Can't initialize SDL";
     }
 
-	if(true){}
-
-    window = SDL_CreateWindow("Glad Sample", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED,
-        m_width, m_height, SDL_WINDOW_FULLSCREEN | SDL_WINDOW_SHOWN | SDL_WINDOW_OPENGL);
+    SDL_ShowCursor(SDL_FALSE);
+    int fullscreen = 0;
+#define FULLSCREEN
+#ifdef FULLSCREEN
+    m_width = 1920, m_height = 1080;
+    fullscreen = SDL_WINDOW_FULLSCREEN;
+#endif
+    window = SDL_CreateWindow("Glad Sample", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, m_width, m_height,
+        fullscreen | SDL_WINDOW_SHOWN | SDL_WINDOW_OPENGL);
     SDL_SetWindowResizable(window, SDL_TRUE);
 
     renderer = SDL_CreateRenderer(window, -1, SDL_RENDERER_ACCELERATED);
