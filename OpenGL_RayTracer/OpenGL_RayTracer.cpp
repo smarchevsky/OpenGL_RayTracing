@@ -40,7 +40,7 @@ public:
         m_boundMin = min, m_boundMax = max;
         for (auto& sph : m_spheres) {
             sph.pos = cubeRand(min, max);
-            sph.vel = sphericalRand(22.4f);
+            sph.vel = sphericalRand(2.4f);
             sph.r = 1.f;
         }
     }
@@ -103,7 +103,7 @@ int main()
         };
 
         float boxWidth = 5.f;
-		float boxHeight = 3.f;
+        float boxHeight = 3.f;
         SphereMotion<8> sphMotion(vec3(-boxWidth, -boxWidth, -boxHeight), vec3(boxWidth, boxWidth, boxHeight));
 
         static int updater = 0;
@@ -111,16 +111,17 @@ int main()
         vec3 sphPositions[8] {};
         while (window.update()) {
             if (updater++ % 60 == 0) {
-                updateShader();
+                // updateShader();
             }
             vec2 rot = window.getMousePos() * 3.f;
             //rot.y = -.5;
             //rot.x = time * .2;
             float dt = window.getDeltaTime();
             time += dt;
-            vec3 rotateVec = glm::rotateY(vec3(8, 0, 0), rot.y);
+            rot.y = clamp(rot.y, -glm::half_pi<float>() + 0.001f, glm::half_pi<float>() - 0.001f);
+            vec3 rotateVec = glm::rotateY(vec3(9, 0, 0), rot.y);
             rotateVec = glm::rotateZ(rotateVec, -rot.x);
-            mat4 viewMat = glm::inverse(glm::lookAt(rotateVec, vec3(0), vec3(0, 0, 1)));
+            mat4 viewMat = glm::inverse(glm::lookAt(rotateVec, vec3(0, 0, -1), vec3(0, 0, 1)));
 
             sphMotion.update(dt);
             shaderSphPrevPositions.set(sphPositions, 8);

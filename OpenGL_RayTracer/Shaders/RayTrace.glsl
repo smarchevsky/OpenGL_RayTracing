@@ -109,9 +109,9 @@ float fresnel(float d)
 
 vec3 getColor(vec3 n, vec3 rd, int id)
 {
-    float intens = fresnel(dot(-rd, n));
-    intens = mix(intens, 1.0, 0.7);
-    return vec3(.8) * intens
+    float fres = fresnel(dot(-rd, n));
+    float intens = mix(fres, 1.0, 0.7);
+    return vec3(.8) * intens + .65 * fres * rainbow(1.0 - fres * 20)
         //* ((id >= 0) ? rainbow(id * .21) : vec3(1))
         ;
 }
@@ -138,11 +138,7 @@ vec4 getSceneColor(inout vec3 ro, inout vec3 rd, vec3 sphBlur)
         EVALUATE_RAY(k, dist, n, id, newId);
     }
 
-    vec3 blurNormal = normalize(n + sphBlur * .03);
-    float dotNN = dot(n, blurNormal);
-
-    //blurNormal = (dotNN < 0) ? blurNormal - 2.0 * n * dotNN : blurNormal;
-    n = blurNormal;
+    n = normalize(n + sphBlur * .03);
 
     vec3 color = (dist >= MAX) ? sky(rd) : getColor(n, rd, id);
 
